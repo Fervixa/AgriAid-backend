@@ -1,17 +1,21 @@
-# backend/main.py
-from fastapi import FastAPI, Depends
-from backend.firebase_admin_init import db
-from backend.auth_deps import get_uid
+from fastapi import FastAPI, Depends, HTTPException
+from firebase_admin_init import db
+from auth_deps import get_uid
+from agent import run_diagnosis, DiagnosisResult
 from firebase_admin import firestore
 
 app = FastAPI()
 
 @app.post("/analyze")
 async def analyze(payload: dict, uid: str = Depends(get_uid)):
-    image_url = payload.get("imageUrl")
+    # Make image optional
+    image_url = payload.get("imageUrl", None)
     symptom_text = payload.get("symptomText")
 
-    # 1) create case doc
+    if not symptom_text:
+        raise HTTPException(status_code=400, detail="Please provide symptom text.")
+
+    # 1️⃣ Create Firestore case document
     case_ref = db.collection("cases").document()
     case_ref.set({
         "userId": uid,
@@ -21,24 +25,43 @@ async def analyze(payload: dict, uid: str = Depends(get_uid)):
         "createdAt": firestore.SERVER_TIMESTAMP
     })
 
-    # 2) Call OpenAI Agent / ML model (omitted here) → get result_json
-    # If quota or offline, return mock result:
-    result_json = {
-        "disease": "Mock blight",
-        "remedy": "Apply fungicide X",
-        "actions": ["Remove affected leaves", "Spray early morning"],
-        "healthScore": 72
-    }
+    # 2️⃣ Run the AI diagnosis
+    try:
+        # If image available → include in analysis
+        if image_url:
+            input_desc = f"Symptom: {symptom_text}\nImage URL: {image_url}"
+        else:
+            input_desc = f"Symptom (no image provided): {symptom_text}"
 
-    # 3) store result (include userId so client can read)
+        result: DiagnosisResult = await run_diagnosis(symptom_text, image_url or "")
+    except Exception as e:
+        print("Agent error:", e)
+        result = DiagnosisResult(
+            disease="Unknown disease",
+            remedy="Unable to analyze. Try providing more details.",
+            actions=[],
+            healthScore=0
+        )
+
+    # 3️⃣ Save result
     result_ref = db.collection("results").document()
     result_ref.set({
         "userId": uid,
-        **result_json,
+        "disease": result.disease,
+        "remedy": result.remedy,
+        "actions": result.actions,
+        "healthScore": result.healthScore,
         "createdAt": firestore.SERVER_TIMESTAMP
     })
 
-    # 4) link case -> result
-    case_ref.update({"status": "done", "resultId": result_ref.id})
+    # 4️⃣ Link result to case
+    case_ref.update({
+        "status": "done",
+        "resultId": result_ref.id
+    })
 
-    return {"caseId": case_ref.id, "resultId": result_ref.id, "result": result_json}
+    return {
+        "caseId": case_ref.id,
+        "resultId": result_ref.id,
+        "result": result.dict()
+    }
