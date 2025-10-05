@@ -700,6 +700,7 @@ dependencies = [
     { name = "firebase-admin" },
     { name = "openai-agents" },
     { name = "pydantic" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
@@ -710,6 +711,7 @@ requires-dist = [
     { name = "firebase-admin", specifier = ">=7.1.0" },
     { name = "openai-agents", specifier = ">=0.3.3" },
     { name = "pydantic", specifier = ">=2.11.10" },
+    { name = "uvicorn", specifier = ">=0.37.0" },
 ]
 
 [[package]]

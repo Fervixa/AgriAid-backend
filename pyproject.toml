@@ -11,4 +11,5 @@ dependencies = [
     "firebase-admin>=7.1.0",
     "openai-agents>=0.3.3",
     "pydantic>=2.11.10",
+    "uvicorn>=0.37.0",
 ]

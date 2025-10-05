@@ -3,8 +3,16 @@ from firebase_admin_init import db
 from auth_deps import get_uid
 from agent import run_diagnosis, DiagnosisResult
 from firebase_admin import firestore
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 👈 or ["http://localhost:3000"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/analyze")
 async def analyze(payload: dict, uid: str = Depends(get_uid)):
