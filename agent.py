@@ -7,7 +7,7 @@ class DiagnosisResult(BaseModel):
     disease: str
     remedy: str
     actions: List[str]
-    healthScore: int
+    healthScore: list[int] | None
 
 # Create an agent instance with instructions:
 diagnosis_agent = Agent(
@@ -15,10 +15,13 @@ diagnosis_agent = Agent(
     instructions=(
         "You are an AI expert in plant diseases. "
         "Given a symptom description or image URL, diagnose the disease, recommend remedy and steps, "
-        "and give a health score (0–100). "
+        "and give a health score (0–100)."
+        "And give a farmer friendly answer don't get more technical just be simple and precise."
+        "if user doesn't provide any picture of plant simply return none in health score"
         "Return a JSON matching the schema DiagnosisResult."
     ),
     output_type=DiagnosisResult  # ensures agent returns that structured type
+    
 )
 async def run_diagnosis(symptom: str, image_url: str = "") -> DiagnosisResult:
     input_text = (
